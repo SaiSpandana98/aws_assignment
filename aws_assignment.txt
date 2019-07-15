@@ -1,0 +1,406 @@
+
+Question 5:
+
+import json
+import urllib.parse
+import boto3
+
+print('Loading function')
+
+#Creating local s3 variable
+s3 = boto3.client('s3')
+
+#Handler Function
+def lambda_handler(event, context):
+
+	# The event has the bucket name and object key when it is invoked
+	# Get bucket name from the event
+	bucket = event['Records'][0]['s3']['bucket']['name']
+    # Get object 'key' from the event
+    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')    
+
+    src_bucket_name = bucket
+    source_key = key
+    dest_bucket_name = 'kungfu-panda1'
+    dest_object_name = key
+    
+    # Creating copy_source Dictionary with source details
+    copy_source = {
+        'Bucket': src_bucket_name,
+        'Key': key
+    }
+    
+    # Copying from source to destination folder withing same bucket
+    s3.copy(copy_source, dest_bucket_name, dest_object_name)
+    
+   
+    
+   
+        
+
+
+Question 9:
+
+creating a table name 'Games' with 'gid' attribute with keytype ''
+
+aws dynamodb create-table \
+ --table-name Games \
+ --attribute-definitions \
+ AttributeName=gid,AttributeType=N \
+ --key-schema AttributeName=gid,KeyType=HASH \
+ --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 \
+ --region us-east-2
+
+aws dynamodb put-item \
+ --table-name Games \
+ --item '{
+ "gid": {"N":"2"},
+ "gname": {"S":"B"},
+ "publisher": {"S":"abc"},
+ "rating": {"N":"4"},
+ "releasedate": {"S":"july1,2019"},
+ "genres": {"SS":["romcom","fiction"]}}' \
+ --return-consumed-capacity TOTAL \
+ --region us-east-2
+
+
+
+
+
+Question 10:
+
+ #writing a query to output the 'rating' and 'gname' values for the attribute value 'gid = 2'
+
+aws dynamodb query \                        
+   --table-name Games \
+   --select "SPECIFIC_ATTRIBUTES" \
+   --key-condition-expression "gid = :id" \
+   --expression-attribute-values  '{":id":{"N":"2"}}' \
+   --projection-expression "gname,rating" \
+   --region us-east-2
+
+Output:
+
+{
+    "Count": 1,
+    "Items": [
+        {
+            "rating": {
+                "N": "4"
+            },
+            "gname": {
+                "S": "B"
+            }
+        }
+    ],
+    "ScannedCount": 1,
+    "ConsumedCapacity": null
+}
+
+
+
+
+
+
+Question 6:
+
+Let’s consider an example where I want to give specific IAM principals in my organization direct access to my S3 bucket,
+2018-Financial-Data, that contains sensitive financial information. 
+I have one account in my AWS organization, and only some IAM users from these accounts need access to this financial report.
+
+To grant this access, I author a resource-based policy for my S3 bucket as shown below. 
+In this policy, I list the individuals who I want to grant access. 
+For the sake of this example, let’s say that while doing so, 
+I accidentally specify an incorrect account ID. 
+
+This means a user named Steve, who is not in an account in my organization, 
+can now access my financial report. To require the principal account to be in my organization, 
+I add a condition to my policy using the global condition key aws:PrincipalOrgID. 
+This condition requires that only principals from accounts in my organization can access the S3 bucket. 
+This means that although Steve is one of the principals in the policy, 
+he can’t access the financial report because the account that he is a member of doesn’t belong to my organization.
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowGetObject",
+            "Effect": "Allow",
+            "Principal": {
+				"AWS":[
+						"arn:aws:iam::094697565664:user/Casey",
+                        "arn:aws:iam::094697565664:user/David",
+                        "arn:aws:iam::094697565664:user/Tom",
+                        "arn:aws:iam::094697565664:user/Michael",
+                        "arn:aws:iam::094697565664:user/Brenda",
+                        "arn:aws:iam::094697565664:user/Lisa",
+                        "arn:aws:iam::094697565664:user/Norman",
+                        "arn:aws:iam::094697565665:user/Steve",
+                        "arn:aws:iam::094697565664:user/Douglas",
+                        "arn:aws:iam::094697565664:user/Michelle"
+]
+},
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::2018-Financial-Data/*",
+            "Condition": {"StringEquals": 
+                             {"aws:PrincipalOrgID": [ "o-yyyyyyyyyy" ]}
+                         }
+        }
+    ]
+}
+In the policy above, I specify the principals that I grant access to using the principal element of the statement. 
+Next, I add s3:GetObject as the action and 2018-Financial-Data/* as the resource to grant read access to my S3 bucket. 
+Finally, I add the new condition key aws:PrincipalOrgID and specify my organization ID in the condition element of the statement
+to make sure only the principals from the accounts in my organization can access this bucket.
+
+
+
+
+
+
+
+Question 3:
+
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1562939985350",
+    "Statement": [
+        {
+            "Sid": "AllowRootUserToDeleteAndPutObjectIntoBucket",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::488599217855:root"   #allow access to root user
+            },
+            "Action": [
+                "s3:DeleteObject",   #allow access for deleting and putting objects
+                "s3:PutObject"
+            ],
+            "Resource": "arn:aws:s3:::MyBucket/*"   #allow access into the MyBucket
+        },
+        {
+            "Sid": "DenyOthersFromRetrievingObjectsFromMySecretFolder",
+            "Effect": "Deny",
+            "Principal": "*",                            #deny everyone to get object from MySecretFolder
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::MyBucket/MySecretFolder/*"
+        },
+        {
+            "Sid": "AllowOthersFromRetrievingObjectsFromBucket",
+            "Effect": "Allow",
+            "Principal": "*",                           #allow everyone to get object from MyBucket
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::MyBucket/*"
+        }
+    ]
+}
+
+
+
+
+
+
+
+Question 1:
+
+step 1- Launching an EC2 instance in n.verginia #chosen Amazon Linux AMI
+        #The security group must include inbound rules for SSH and HTTP access
+step 2- connect to instance and install web server
+      $ sudo yum update -y
+#install the Apache web server with the PHP software package using the yum install command
+      $ sudo yum install -y httpd24 php56 php56-mysqlnd
+#Start the web server with the command shown following
+      $ sudo service httpd start
+#Configure the web server to start with each system boot using the chkconfig command
+      $ sudo chkconfig httpd on
+#you add a group named www to your EC2 instance, and then you give that group ownership of the /var/www directory and add write permissions for the group
+      $ sudo groupadd www
+      $ sudo usermod -a -G www ec2-user
+      $ exit
+#verify that the www group exists with the groups command
+      $ groups
+      ec2-user wheel www
+#Change the group ownership of the /var/www directory and its contents to the www group
+      $ sudo chown -R root:www /var/www
+#Change the directory permissions of /var/www and its subdirectories to add group write permissions and set the group ID on subdirectories created in the future
+      $ sudo chmod 2775 /var/www
+      $ find /var/www -type d -exec sudo chmod 2775 {} +
+#Recursively change the permissions for files in the /var/www directory and its subdirectories to add group write permissions
+      $ find /var/www -type f -exec sudo chmod 0664 {} +
+#change the directory to /var/www and create a new subdirectory named inc
+      $ cd /var/www/html
+      $ mkdir inc
+#in inc folder writing html content into created index.html file
+      $ cd inc
+      $ echo "<html><h1>Hello from Spandana</h1></html>" > index.html
+#browsing to http://EC2 instance endpoint/index.html
+      $ http://EC2 instance public DNS Name/inc/index.html
+
+step 3- created snapshot of ec2 instance in us-east-1
+step 4- copied it in us-east-2
+
+
+
+
+
+
+
+Question 4:
+
+step 1 : created a lambda function with existing roles 
+
+step 2 : code in lambda function as follows
+
+import json
+
+def lambda_handler(event, context):
+    # TODO implement
+    username=event['username']
+    return username
+
+step 4 : tested the code with testing configurations
+
+step 5 : added 'API gateway' trigger to lambda and configured API gateway
+
+step 6 : opened lambda URL and added '?name=spandana' to the URL, 'spandana' is displayed on the screen
+
+
+
+
+
+
+Question 13:
+
+step 1 : Created SQS by name q13 
+
+step 2 : created lambda function with existing role and 'q13' SQS trigger is added to it
+
+step 3 : python code in lambda function is as follows
+
+import json
+import boto3
+#Creating local s3 variable
+s3 = boto3.client('s3')
+
+#Handler Function
+def lambda_handler(event, context):
+    for s in event['Records']:
+    	#Splits the body of the message with delimeter ' ' sent from the SQS
+        msg = s['body'].split()
+        #Collecting the name of the Resources for the list as following
+        #In our convention first we give the src_bucket_name then source_key then target_key
+        src_bucket_name = msg[0]
+        source_key = msg[1]
+        target_key = msg[2]
+        #Printing the Resource Names
+        print(src_bucket_name)
+        print(source_key)
+        print(target_key)
+        
+        #Creating copy_source Dictionary with source details
+        copy_source = {
+            'Bucket': src_bucket_name,
+            'Key': source_key
+        }
+
+        #Copying from source to destination folder within same bucket
+        s3.copy(copy_source, src_bucket_name, target_key)
+    
+
+step 4 : kungfu-panda1 dell/Shell_assignment.txt dell1/Shell_assignment.txt was the message sent through SQS 'q13'
+
+step 5 : lambda connected to it is triggered and 'Shell_assignment.txt' file was copied from 'dell' folder to 'dell1' folder of kungfu-panda1 s3 bucket
+
+
+
+
+Question 14:
+
+
+step 1 : Connected to EC2 instance and opened new python file from vi editor
+
+step 2 : enter content into python file as follows
+ 
+import json
+import boto3    
+
+#Creating local s3 variable
+s3 = boto3.client('s3')
+
+#Creating local sqs variable in 'us-east-2' region
+
+sqs = boto3.client('sqs',region_name='us-east-2')
+
+# Get the URL for queue. 
+
+queue = sqs.get_queue_url(QueueName='q13')
+
+print("Enter the msg to be sent to SQS in the following format\n")
+
+print("src_bucket_name\t source_key\t target_key\n")
+
+#give input message here 
+
+msg = input()        
+
+responses = sqs.send_message(QueueUrl=queue, MessageBody=(msg))
+
+# The response is NOT a resource, but gives you a message ID and MD5
+
+print("\nMessage sent\n")
+
+step 3 : Message will be sent to SNS queue, lambda connected to SNS queue will be triggered and s3 file copy will be done
+
+
+
+
+Question 15:
+
+step 1 : created an SNS topic named q15 in n.verginia region and also created subscibers to it by enter phone number for SMS protocol
+
+step 2 : created a lambda function in n.verginia region with existing roles and 'hello world' blue print was chosen
+
+step 3 : type code as follows
+
+from __future__ import print_function
+  
+import json
+import boto3
+  
+print('Loading function')
+  
+def lambda_handler(event, context):
+  
+    # Parse the JSON message 
+    eventText = json.dumps(event)
+  
+    # Print the parsed JSON message to the console; you can view this text in the Monitoring tab in the Lambda console or in the CloudWatch Logs console
+    print('Received event: ', eventText)
+  
+    # Create an SNS client
+    sns = boto3.client('sns')
+  
+    # Publish a message to the specified topic
+    response = sns.publish (
+      TopicArn = 'arn:aws:sns:us-east-1:488599217855:q15',
+      Message = eventText
+    )
+  
+    print(response)
+
+step 4 : when the above code is tested, message 'hello world' is sent to the subscribed phone_nos. in SNS 
+
+
+
+
+        
+        
+    
+       
+
+
+
+
+
+
+
+
